@@ -102,8 +102,11 @@ def calculate_total(selections):
         total_cost += cost
         total_strength += strength
     
-    if selections["内外壁"] in ["单层不锈钢", "双层不锈钢"] and selections["夹层"] != "无夹层":
-        total_thermal += 20
+    if selections["内外壁"] in ["单层不锈钢", "双层不锈钢"]:
+        if selections["夹层"] == "抽真空":
+            total_thermal += 35
+        elif selections["夹层"] == "填充空气":
+            total_thermal += 15
     
     if total_cost > 30:
         return total_thermal, total_cost, total_strength, 0
@@ -222,6 +225,14 @@ def get_evaluation(score):
     else:
         return "💡", "初次探索！慢慢发现其中的奥秘！", "#9E9E9E"
 
+# ===================== 初始化session_state =====================
+if 'show_name_input' not in st.session_state:
+    st.session_state.show_name_input = False
+if 'submitted_score' not in st.session_state:
+    st.session_state.submitted_score = None
+
+RANDOM_NAMES = ["无名大侠", "神秘工匠", "设计新星", "创意达人", "探索先锋", "材料达人"]
+
 # ===================== 主区域 =====================
 col_left, col_right = st.columns([2.5, 1.5])
 
@@ -231,19 +242,13 @@ with col_left:
     svg_content = generate_thermos_svg(stopper, wall, gap, coating)
     components.html(
         f'''
-        <div style="display: flex; justify-content: center; align-items: center; padding: 10px;">
+        <div style="display: flex; justify-content: center; align-items: center; padding: 5px;">
             {svg_content}
         </div>
         ''',
-        height=550
+        height=500
     )
-    st.markdown(f"""
-    **当前配置:**
-    - 瓶塞: {stopper}
-    - 内外壁: {wall}
-    - 夹层: {gap}
-    - 涂层: {coating}
-    """)
+    st.markdown(f"**当前配置:** {stopper} | {wall} | {gap} | {coating}")
 
 # 右列：雷达图 + 性能指标 + 降温曲线
 with col_right:
@@ -259,14 +264,13 @@ with col_right:
         theta='维度',
         line_close=True,
         range_r=[-30, 70],
-        title='保温杯性能分析',
-        height=350
+        title='',
+        height=300
     )
     fig_radar.update_traces(fill='toself')
-    fig_radar.update_layout(margin=dict(l=40, r=40, t=50, b=40))
+    fig_radar.update_layout(margin=dict(l=30, r=30, t=30, b=30))
     st.plotly_chart(fig_radar, use_container_width=True)
 
-    st.subheader("📋 性能指标")
     metric_col1, metric_col2, metric_col3 = st.columns(3)
     with metric_col1:
         st.metric("保温效能", f"{total_thermal}")
@@ -275,7 +279,6 @@ with col_right:
     with metric_col3:
         st.metric("坚固度", f"{total_strength}")
 
-    st.subheader("📈 降温模拟")
     t = np.linspace(0, 60, 100)
     k = 0.1 - (total_thermal / 500)
     k = max(0.01, k)
@@ -285,38 +288,58 @@ with col_right:
         temp_data,
         x='时间(分钟)',
         y='温度(℃)',
-        title='降温曲线',
+        title='降温模拟',
         range_y=[20, 100],
-        height=250
+        height=200
     )
-    fig_temp.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+    fig_temp.update_layout(margin=dict(l=20, r=20, t=30, b=20))
     st.plotly_chart(fig_temp, use_container_width=True)
 
 # ===================== 提交区 =====================
 st.divider()
-st.subheader("✅ 提交我的设计")
-st.caption("💡 探索不同材料的组合，想看看最终得分？提交你的设计吧！")
+btn_col1, btn_col2 = st.columns(2)
 
-designer_name = st.text_input("设计师姓名/代号")
-submitted = st.button("提交我的设计")
+with btn_col1:
+    if st.button("✅ 提交我的设计", use_container_width=True):
+        st.session_state.show_name_input = True
 
-if submitted:
-    if designer_name:
-        save_submission(designer_name, stopper, wall, gap, coating, score)
-        emoji, comment, color = get_evaluation(score)
-        st.balloons()
-        st.markdown(f"""
-        <div style="text-align: center; padding: 30px; border-radius: 15px; background: linear-gradient(135deg, {color}22, {color}44); margin: 20px 0;">
-            <h1 style="font-size: 60px; margin: 0;">{emoji}</h1>
-            <h2 style="color: {color}; margin: 10px 0;">{comment}</h2>
-            <h1 style="font-size: 48px; color: {color}; margin: 10px 0;">{score:.2f} 分</h1>
-            <p style="color: #666;">设计已提交成功！</p>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.warning("请输入设计师姓名/代号")
+with btn_col2:
+    st.markdown(
+        '<a href="#leaderboard"><button style="width:100%; padding:8px; background:#1f77b4; color:white; border:none; border-radius:5px; cursor:pointer; font-size:14px;">🏆 英雄榜</button></a>',
+        unsafe_allow_html=True
+    )
+
+if st.session_state.show_name_input:
+    default_name = np.random.choice(RANDOM_NAMES)
+    designer_name = st.text_input("设计师姓名/代号", value=default_name)
+    confirm_col1, confirm_col2 = st.columns([1, 3])
+    with confirm_col1:
+        if st.button("确认提交", type="primary"):
+            save_submission(designer_name or default_name, stopper, wall, gap, coating, score)
+            st.session_state.submitted_score = score
+            st.session_state.show_name_input = False
+            st.rerun()
+    with confirm_col2:
+        if st.button("取消"):
+            st.session_state.show_name_input = False
+            st.rerun()
+
+if st.session_state.submitted_score is not None:
+    emoji, comment, color = get_evaluation(st.session_state.submitted_score)
+    st.balloons()
+    st.markdown(f"""
+    <div style="text-align: center; padding: 20px; border-radius: 15px; background: linear-gradient(135deg, {color}22, {color}44); margin: 10px 0;">
+        <h1 style="font-size: 50px; margin: 0;">{emoji}</h1>
+        <h2 style="color: {color}; margin: 5px 0;">{comment}</h2>
+        <h1 style="font-size: 40px; color: {color}; margin: 5px 0;">{st.session_state.submitted_score:.2f} 分</h1>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🔄 继续探索"):
+        st.session_state.submitted_score = None
+        st.rerun()
 
 # ===================== 排行榜 =====================
+st.markdown('<a name="leaderboard"></a>', unsafe_allow_html=True)
 with st.expander("🏆 全班排行榜"):
     leaderboard = get_leaderboard()
     if not leaderboard.empty:
