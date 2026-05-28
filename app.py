@@ -31,35 +31,39 @@ MATERIALS = {
     }
 }
 
-# 材料颜色映射 - 更真实的颜色
+# 材料颜色映射
 COLORS = {
     "瓶塞": {
-        "塑料敞口": "#333333",      
-        "实心木塞": "#8B7355",       
-        "真空中空塞": "#C0C0C0"      
+        "塑料敞口": "#333333",
+        "实心木塞": "#8B7355",
+        "真空中空塞": "#C0C0C0"
     },
     "内外壁": {
-        "单层塑料": "#6B8DD6",       
-        "单层玻璃": "#B8D4E3",       
-        "单层不锈钢": "#A8A8A8",     
-        "双层塑料": "#4A6FA5",       
-        "双层玻璃": "#9EC5D8",       
-        "双层不锈钢": "#888888"      
+        "单层塑料": "#6B8DD6",
+        "单层玻璃": "#B8D4E3",
+        "单层不锈钢": "#A8A8A8",
+        "双层塑料": "#4A6FA5",
+        "双层玻璃": "#9EC5D8",
+        "双层不锈钢": "#888888"
     },
     "夹层": {
         "无夹层": "transparent",
-        "填充空气": "#F0F0F0",       
-        "抽真空": "#1a1a2e"          
+        "填充空气": "#F0F0F0",
+        "抽真空": "#1a1a2e"
     },
     "涂层": {
         "无涂层": "transparent",
-        "镀银涂层": "#E8E8E8"         
+        "镀银涂层": "#E8E8E8"
     }
 }
 
 # ===================== 2. 数据库功能 =====================
+@st.cache_resource
+def get_connection():
+    return sqlite3.connect('thermos_scores.db', check_same_thread=False)
+
 def init_db():
-    conn = sqlite3.connect('thermos_scores.db')
+    conn = get_connection()
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS submissions
@@ -75,7 +79,7 @@ def init_db():
     conn.close()
 
 def save_submission(name, stopper, wall, gap, coating, score):
-    conn = sqlite3.connect('thermos_scores.db')
+    conn = get_connection()
     c = conn.cursor()
     c.execute('''
         INSERT INTO submissions (name, stopper, wall, gap, coating, score)
@@ -85,8 +89,8 @@ def save_submission(name, stopper, wall, gap, coating, score):
     conn.close()
 
 def get_leaderboard():
-    conn = sqlite3.connect('thermos_scores.db')
-    df = pd.read_sql_query('SELECT * FROM submissions ORDER BY score DESC', conn)
+    conn = get_connection()
+    df = pd.read_sql_query('SELECT name, score, stopper, wall, gap, coating FROM submissions ORDER BY score DESC', conn)
     conn.close()
     return df
 
@@ -102,6 +106,7 @@ def calculate_total(selections):
         total_cost += cost
         total_strength += strength
     
+    # 优化后的加成算法
     if selections["内外壁"] in ["单层不锈钢", "双层不锈钢"]:
         if selections["夹层"] == "抽真空":
             total_thermal += 35
@@ -137,7 +142,7 @@ def generate_thermos_svg(stopper, wall, gap, coating):
     is_single_wall = not is_double_wall
     
     svg = f'''
-    <svg width="420" height="380" viewBox="0 0 420 380">
+    <svg width="600" height="520" viewBox="0 0 600 520">
         <defs>
             <linearGradient id="wallGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" style="stop-color:{wall_color};stop-opacity:1" />
@@ -155,49 +160,50 @@ def generate_thermos_svg(stopper, wall, gap, coating):
                     <feMergeNode in="SourceGraphic"/>
                 </feMerge>
             </filter>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#ff6b6b" />
-            </marker>
         </defs>
         
         <!-- 外层瓶壁 -->
-        <path d="M140 80 L135 90 L135 240 Q135 265 155 265 L175 265 Q195 265 195 240 L195 90 L190 80 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="2"/>
+        <path d="M180 100 L170 120 L170 360 Q170 400 200 400 L240 400 Q270 400 270 360 L270 120 L260 100 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="3"/>
         
         <!-- 双层：内层瓶壁 -->
-        {'<path d="M178 90 L180 95 L180 235 Q180 258 170 258 L160 258 Q150 258 150 235 L150 95 L152 90 Z" fill="{wall_color}" opacity="0.5" stroke="#555" stroke-width="1"/>' if is_double_wall else ''}
+        {'<path d="M250 120 L255 130 L255 350 Q255 390 245 390 L235 390 Q225 390 225 350 L225 130 L230 120 Z" fill="{wall_color}" opacity="0.5" stroke="#555" stroke-width="2"/>' if is_double_wall else ''}
         
         <!-- 双层：夹层（两层瓶壁之间） -->
-        {f'<path d="M152 90 L150 95 L150 235 Q150 258 160 258 L170 258 Q180 258 180 235 L180 95 L178 90 Z" fill="{gap_color}" opacity="0.6"/>' if is_double_wall and gap != "无夹层" else ''}
+        {f'<path d="M225 120 L225 350 Q225 390 235 390 L245 390 Q255 390 255 350 L255 130 Z" fill="{gap_color}" opacity="0.6"/>' if is_double_wall and gap != "无夹层" else ''}
         
         <!-- 涂层（内壁内侧） -->
-        {f'<path d="M155 95 L153 100 L153 230 Q153 253 162 253 L168 253 Q177 253 177 230 L177 100 L175 95 Z" fill="{coating_color}" opacity="0.4" filter="url(#glow)"/>' if show_coating else ''}
+        {f'<path d="M228 130 L228 345 Q228 385 237 385 L243 385 Q252 385 252 345 L252 130 Z" fill="{coating_color}" opacity="0.4" filter="url(#glow)"/>' if show_coating else ''}
         
-        <!-- 瓶口和瓶塞 -->
-        <path d="M142 60 L140 80 L190 80 L188 60 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="2"/>
-        <rect x="145" y="35" width="40" height="25" rx="4" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
-        <path d="M140 60 L135 75 L155 70 L175 70 L195 75 L190 60 Z" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
+        <!-- 瓶口 -->
+        <path d="M180 80 L175 100 L265 100 L260 80 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="3"/>
+        
+        <!-- 瓶塞 -->
+        <rect x="190" y="50" width="60" height="30" rx="6" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
+        <path d="M175 80 L165 100 L190 95 L250 95 L275 100 L265 80 Z" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
         
         <!-- 瓶底 -->
-        <ellipse cx="165" cy="268" rx="32" ry="8" fill="{wall_color}" opacity="0.8" stroke="#333" stroke-width="2"/>
+        <ellipse cx="220" cy="403" rx="52" ry="12" fill="{wall_color}" opacity="0.8" stroke="#333" stroke-width="3"/>
         
-        <!-- 标注线 - 指向瓶塞 -->
-        <line x1="210" y1="47" x2="188" y2="47" stroke="#ff6b6b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="215" y="51" font-size="12" fill="#ff6b6b" font-weight="bold">瓶塞: {stopper}</text>
+        <!-- ===== 标注线 - 纵向分布避免重叠 ===== -->
         
-        <!-- 标注线 - 指向内外壁 -->
-        <line x1="210" y1="170" x2="195" y2="170" stroke="#4ecdc4" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <text x="215" y="174" font-size="12" fill="#4ecdc4" font-weight="bold">内外壁: {wall}</text>
+        <!-- 瓶塞标注 - 右侧上方 Y=65 -->
+        <line x1="275" y1="65" x2="250" y2="65" stroke="#ff6b6b" stroke-width="2"/>
+        <text x="280" y="69" font-size="15" fill="#ff6b6b" font-weight="bold">瓶塞: {stopper}</text>
         
-        <!-- 标注线 - 指向夹层（仅双层时显示） -->
-        {f'<line x1="280" y1="170" x2="165" y2="170" stroke="#ffe66d" stroke-width="1.5" marker-end="url(#arrowhead)"/>' if is_double_wall else ''}
-        {f'<text x="285" y="174" font-size="12" fill="#ffe66d" font-weight="bold">夹层: {gap}</text>' if is_double_wall else '<text x="285" y="174" font-size="12" fill="#666">单层无夹层</text>'}
+        <!-- 涂层标注 - 左侧上方 Y=150 -->
+        {f'<line x1="160" y1="150" x2="225" y2="150" stroke="#a855f7" stroke-width="2"/>' if show_coating else '<line x1="140" y1="150" x2="165" y2="150" stroke="#666" stroke-width="1" stroke-dasharray="3,3"/>'}
+        {f'<text x="155" y="146" font-size="15" fill="#a855f7" font-weight="bold" text-anchor="end">涂层: {coating}</text>' if show_coating else '<text x="135" y="146" font-size="12" fill="#666" text-anchor="end">涂层</text>'}
         
-        <!-- 标注线 - 指向涂层 -->
-        {f'<line x1="110" y1="170" x2="148" y2="170" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrowhead)"/>' if show_coating else ''}
-        {f'<text x="30" y="174" font-size="12" fill="#a855f7" font-weight="bold" text-anchor="end">涂层: {coating}</text>' if show_coating else ''}
-        {f'<text x="110" y="174" font-size="11" fill="#666" text-anchor="end">涂层</text>' if not show_coating else ''}
+        <!-- 夹层标注 - 右侧中间 Y=260 -->
+        {f'<line x1="275" y1="260" x2="255" y2="260" stroke="#ffe66d" stroke-width="2"/>' if is_double_wall else ''}
+        {f'<text x="280" y="264" font-size="15" fill="#ffe66d" font-weight="bold">夹层: {gap}</text>' if is_double_wall else '<text x="280" y="264" font-size="13" fill="#666">单层无夹层</text>'}
         
-        <text x="165" y="290" text-anchor="middle" font-size="13" fill="#888" font-weight="bold">保温瓶模型</text>
+        <!-- 内外壁标注 - 右侧下方 Y=340 -->
+        <line x1="275" y1="340" x2="270" y2="340" stroke="#4ecdc4" stroke-width="2"/>
+        <text x="280" y="344" font-size="15" fill="#4ecdc4" font-weight="bold">内外壁: {wall}</text>
+        
+        <!-- 底部标题 -->
+        <text x="220" y="430" text-anchor="middle" font-size="16" fill="#888" font-weight="bold">保温瓶模型</text>
     </svg>
     '''
     return svg
@@ -206,10 +212,35 @@ def generate_thermos_svg(stopper, wall, gap, coating):
 st.set_page_config(page_title="保温杯终极设计师", layout="wide")
 st.title("🥤 保温杯终极设计师")
 
+# 初始化数据库
 init_db()
 
+# ===================== 初始化session_state =====================
+if 'submitted_score' not in st.session_state:
+    st.session_state.submitted_score = None
+if 'show_leaderboard' not in st.session_state:
+    st.session_state.show_leaderboard = False
+
+RANDOM_NAMES = ["无名大侠", "神秘工匠", "设计新星", "创意达人", "探索先锋", "材料达人"]
+
+# ===================== 英雄榜弹窗 =====================
+@st.dialog("🏆 全班排行榜", width="large")
+def show_leaderboard_dialog():
+    leaderboard = get_leaderboard()
+    if not leaderboard.empty:
+        st.dataframe(leaderboard, use_container_width=True)
+    else:
+        st.info("暂无提交记录，成为第一个提交者吧！")
+    if st.button("关闭", key="close_board"):
+        st.session_state.show_leaderboard = False
+        st.rerun()
+
+# 点击英雄榜按钮触发弹窗
+if st.session_state.show_leaderboard:
+    show_leaderboard_dialog()
+
 # ===================== 侧边栏 - 工程控制台 =====================
-st.sidebar.header("🛠️ 工程控制台")
+st.sidebar.header("️ 工程控制台")
 
 stopper_label = st.sidebar.selectbox("瓶塞选择", get_material_options("瓶塞"), index=0)
 wall_label = st.sidebar.selectbox("内外壁选择", get_material_options("内外壁"), index=0)
@@ -260,15 +291,7 @@ def get_evaluation(score):
     elif score >= 20:
         return "🔧", "继续尝试！多试几种组合吧～", "#FF9800"
     else:
-        return "💡", "初次探索！慢慢发现其中的奥秘！", "#9E9E9E"
-
-# ===================== 初始化session_state =====================
-if 'show_name_input' not in st.session_state:
-    st.session_state.show_name_input = False
-if 'submitted_score' not in st.session_state:
-    st.session_state.submitted_score = None
-
-RANDOM_NAMES = ["无名大侠", "神秘工匠", "设计新星", "创意达人", "探索先锋", "材料达人"]
+        return "", "初次探索！慢慢发现其中的奥秘！", "#9E9E9E"
 
 # ===================== 主区域 =====================
 col_left, col_right = st.columns([2.5, 1.5])
@@ -283,7 +306,7 @@ with col_left:
             {svg_content}
         </div>
         ''',
-        height=420
+        height=560
     )
     st.markdown(f"**当前配置:** {stopper} | {wall} | {gap} | {coating}")
 
@@ -334,32 +357,24 @@ with col_right:
 
 # ===================== 提交区 =====================
 st.divider()
-btn_col1, btn_col2 = st.columns(2)
+
+# 姓名输入框
+designer_name = st.text_input("设计师姓名/代号", label_visibility="collapsed", placeholder="请输入姓名（留空将使用随机称号）")
+
+# 按钮区域
+btn_col1, btn_col2 = st.columns([1, 1])
 
 with btn_col1:
-    if st.button("✅ 提交我的设计", use_container_width=True):
-        st.session_state.show_name_input = True
+    if st.button("✅ 提交我的设计", type="primary", use_container_width=True):
+        final_name = designer_name if designer_name else np.random.choice(RANDOM_NAMES)
+        save_submission(final_name, stopper, wall, gap, coating, score)
+        st.session_state.submitted_score = score
+        st.rerun()
 
 with btn_col2:
-    st.markdown(
-        '<a href="#leaderboard"><button style="width:100%; padding:8px; background:#1f77b4; color:white; border:none; border-radius:5px; cursor:pointer; font-size:14px;">🏆 英雄榜</button></a>',
-        unsafe_allow_html=True
-    )
-
-if st.session_state.show_name_input:
-    default_name = np.random.choice(RANDOM_NAMES)
-    designer_name = st.text_input("设计师姓名/代号", value=default_name)
-    confirm_col1, confirm_col2 = st.columns([1, 3])
-    with confirm_col1:
-        if st.button("确认提交", type="primary"):
-            save_submission(designer_name or default_name, stopper, wall, gap, coating, score)
-            st.session_state.submitted_score = score
-            st.session_state.show_name_input = False
-            st.rerun()
-    with confirm_col2:
-        if st.button("取消"):
-            st.session_state.show_name_input = False
-            st.rerun()
+    if st.button("🏆 英雄榜", use_container_width=True):
+        st.session_state.show_leaderboard = True
+        st.rerun()
 
 if st.session_state.submitted_score is not None:
     emoji, comment, color = get_evaluation(st.session_state.submitted_score)
@@ -371,15 +386,6 @@ if st.session_state.submitted_score is not None:
         <h1 style="font-size: 40px; color: {color}; margin: 5px 0;">{st.session_state.submitted_score:.2f} 分</h1>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("🔄 继续探索"):
+    if st.button(" 继续探索"):
         st.session_state.submitted_score = None
         st.rerun()
-
-# ===================== 排行榜 =====================
-st.markdown('<a name="leaderboard"></a>', unsafe_allow_html=True)
-with st.expander("🏆 全班排行榜"):
-    leaderboard = get_leaderboard()
-    if not leaderboard.empty:
-        st.dataframe(leaderboard, use_container_width=True)
-    else:
-        st.info("暂无提交记录，成为第一个提交者吧！")
