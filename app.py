@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import sqlite3
 import pandas as pd
 import plotly.express as px
@@ -225,15 +226,25 @@ with col1:
         theta='维度',
         line_close=True,
         range_r=[-30, 70],
-        title='保温杯性能分析'
+        title='保温杯性能分析',
+        height=400
     )
     fig_radar.update_traces(fill='toself')
+    fig_radar.update_layout(margin=dict(l=40, r=40, t=60, b=40))
     st.plotly_chart(fig_radar, use_container_width=True)
 
 # 中列：保温瓶可视化
 with col2:
     st.subheader("🧪 保温杯模型")
-    st.markdown(generate_thermos_svg(stopper, wall, gap, coating), unsafe_allow_html=True)
+    svg_content = generate_thermos_svg(stopper, wall, gap, coating)
+    components.html(
+        f'''
+        <div style="display: flex; justify-content: center; align-items: center; padding: 20px;">
+            {svg_content}
+        </div>
+        ''',
+        height=350
+    )
     st.markdown(f"""
     **当前配置:**
     - 瓶塞: {stopper}
