@@ -134,9 +134,10 @@ def generate_thermos_svg(stopper, wall, gap, coating):
     
     is_double_wall = "双层" in wall
     show_coating = coating != "无涂层"
+    is_single_wall = not is_double_wall
     
     svg = f'''
-    <svg width="340" height="520" viewBox="0 0 200 300">
+    <svg width="420" height="380" viewBox="0 0 420 380">
         <defs>
             <linearGradient id="wallGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" style="stop-color:{wall_color};stop-opacity:1" />
@@ -154,22 +155,49 @@ def generate_thermos_svg(stopper, wall, gap, coating):
                     <feMergeNode in="SourceGraphic"/>
                 </feMerge>
             </filter>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#ff6b6b" />
+            </marker>
         </defs>
         
-        <rect x="60" y="10" width="80" height="30" rx="5" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
-        <path d="M55 40 L50 60 L70 55 L130 55 L150 60 L145 40 Z" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
+        <!-- 外层瓶壁 -->
+        <path d="M140 80 L135 90 L135 240 Q135 265 155 265 L175 265 Q195 265 195 240 L195 90 L190 80 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="2"/>
         
-        {f'<path d="M60 60 L55 70 L65 68 L65 260 Q65 280 85 280 L115 280 Q135 280 135 260 L135 68 L145 70 L140 60 Z" fill="{gap_color}" opacity="0.6"/>' if gap != "无夹层" else ''}
+        <!-- 双层：内层瓶壁 -->
+        {'<path d="M178 90 L180 95 L180 235 Q180 258 170 258 L160 258 Q150 258 150 235 L150 95 L152 90 Z" fill="{wall_color}" opacity="0.5" stroke="#555" stroke-width="1"/>' if is_double_wall else ''}
         
-        <path d="M65 68 L60 75 L60 260 Q60 285 80 285 L120 285 Q140 285 140 260 L140 75 L135 68 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="2"/>
+        <!-- 双层：夹层（两层瓶壁之间） -->
+        {f'<path d="M152 90 L150 95 L150 235 Q150 258 160 258 L170 258 Q180 258 180 235 L180 95 L178 90 Z" fill="{gap_color}" opacity="0.6"/>' if is_double_wall and gap != "无夹层" else ''}
         
-        {f'<path d="M70 75 L68 80 L68 255 Q68 278 82 278 L118 278 Q132 278 132 255 L132 80 L130 75 Z" fill="{wall_color}" opacity="0.5" stroke="#333" stroke-width="1"/>' if is_double_wall else ''}
+        <!-- 涂层（内壁内侧） -->
+        {f'<path d="M155 95 L153 100 L153 230 Q153 253 162 253 L168 253 Q177 253 177 230 L177 100 L175 95 Z" fill="{coating_color}" opacity="0.4" filter="url(#glow)"/>' if show_coating else ''}
         
-        {f'<path d="M72 80 L70 85 L70 250 Q70 275 85 275 L115 275 Q130 275 130 250 L130 85 L128 80 Z" fill="{coating_color}" opacity="0.4" filter="url(#glow)"/>' if show_coating else ''}
+        <!-- 瓶口和瓶塞 -->
+        <path d="M142 60 L140 80 L190 80 L188 60 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="2"/>
+        <rect x="145" y="35" width="40" height="25" rx="4" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
+        <path d="M140 60 L135 75 L155 70 L175 70 L195 75 L190 60 Z" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
         
-        <ellipse cx="100" cy="285" rx="45" ry="10" fill="{wall_color}" opacity="0.8" stroke="#333" stroke-width="2"/>
+        <!-- 瓶底 -->
+        <ellipse cx="165" cy="268" rx="32" ry="8" fill="{wall_color}" opacity="0.8" stroke="#333" stroke-width="2"/>
         
-        <text x="100" y="298" text-anchor="middle" font-size="12" fill="#666">保温瓶</text>
+        <!-- 标注线 - 指向瓶塞 -->
+        <line x1="210" y1="47" x2="188" y2="47" stroke="#ff6b6b" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="215" y="51" font-size="12" fill="#ff6b6b" font-weight="bold">瓶塞: {stopper}</text>
+        
+        <!-- 标注线 - 指向内外壁 -->
+        <line x1="210" y1="170" x2="195" y2="170" stroke="#4ecdc4" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="215" y="174" font-size="12" fill="#4ecdc4" font-weight="bold">内外壁: {wall}</text>
+        
+        <!-- 标注线 - 指向夹层（仅双层时显示） -->
+        {f'<line x1="280" y1="170" x2="165" y2="170" stroke="#ffe66d" stroke-width="1.5" marker-end="url(#arrowhead)"/>' if is_double_wall else ''}
+        {f'<text x="285" y="174" font-size="12" fill="#ffe66d" font-weight="bold">夹层: {gap}</text>' if is_double_wall else '<text x="285" y="174" font-size="12" fill="#666">单层无夹层</text>'}
+        
+        <!-- 标注线 - 指向涂层 -->
+        {f'<line x1="110" y1="170" x2="148" y2="170" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrowhead)"/>' if show_coating else ''}
+        {f'<text x="30" y="174" font-size="12" fill="#a855f7" font-weight="bold" text-anchor="end">涂层: {coating}</text>' if show_coating else ''}
+        {f'<text x="110" y="174" font-size="11" fill="#666" text-anchor="end">涂层</text>' if not show_coating else ''}
+        
+        <text x="165" y="290" text-anchor="middle" font-size="13" fill="#888" font-weight="bold">保温瓶模型</text>
     </svg>
     '''
     return svg
@@ -185,11 +213,20 @@ st.sidebar.header("🛠️ 工程控制台")
 
 stopper_label = st.sidebar.selectbox("瓶塞选择", get_material_options("瓶塞"), index=0)
 wall_label = st.sidebar.selectbox("内外壁选择", get_material_options("内外壁"), index=0)
-gap_label = st.sidebar.selectbox("夹层选择", get_material_options("夹层"), index=0)
-coating_label = st.sidebar.selectbox("涂层选择", get_material_options("涂层"), index=0)
 
 stopper = parse_material_label(stopper_label)
 wall = parse_material_label(wall_label)
+is_double_wall = "双层" in wall
+
+# 单层材料不能选夹层，自动锁定为"无夹层"
+if is_double_wall:
+    gap_label = st.sidebar.selectbox("夹层选择", get_material_options("夹层"), index=0)
+else:
+    st.sidebar.selectbox("夹层选择", ["无夹层 ➡️(效能0) ¥0 (单层不可选)"], index=0, disabled=True)
+    gap_label = "无夹层 ➡️(效能0) ¥0 (单层不可选)"
+
+coating_label = st.sidebar.selectbox("涂层选择", get_material_options("涂层"), index=0)
+
 gap = parse_material_label(gap_label)
 coating = parse_material_label(coating_label)
 
@@ -246,7 +283,7 @@ with col_left:
             {svg_content}
         </div>
         ''',
-        height=500
+        height=420
     )
     st.markdown(f"**当前配置:** {stopper} | {wall} | {gap} | {coating}")
 
