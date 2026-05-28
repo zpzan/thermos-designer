@@ -133,7 +133,7 @@ def generate_thermos_svg(stopper, wall, gap, coating):
     show_coating = coating != "无涂层"
     
     svg = f'''
-    <svg width="280" height="420" viewBox="0 0 200 300">
+    <svg width="340" height="520" viewBox="0 0 200 300">
         <defs>
             <linearGradient id="wallGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" style="stop-color:{wall_color};stop-opacity:1" />
@@ -209,11 +209,44 @@ st.sidebar.metric(
 if total_cost > 30:
     st.error("⚠️ 预算超支，工程破产！")
 
-# ===================== 主区域 =====================
-col1, col2, col3 = st.columns([2, 1.5, 1.5])
+# ===================== 智能评语 =====================
+def get_evaluation(score):
+    if score >= 50:
+        return "🌟", "保温杯大师！您的设计太出色了！", "#FFD700"
+    elif score >= 40:
+        return "👍", "优秀设计师！保温效果很好！", "#4CAF50"
+    elif score >= 30:
+        return "💪", "不错的设计！可以再优化一下～", "#2196F3"
+    elif score >= 20:
+        return "🔧", "继续尝试！多试几种组合吧～", "#FF9800"
+    else:
+        return "💡", "初次探索！慢慢发现其中的奥秘！", "#9E9E9E"
 
-# 左列：雷达图
-with col1:
+# ===================== 主区域 =====================
+col_left, col_right = st.columns([2.5, 1.5])
+
+# 左列：大保温瓶模型 + 配置信息
+with col_left:
+    st.subheader("🧪 保温杯模型")
+    svg_content = generate_thermos_svg(stopper, wall, gap, coating)
+    components.html(
+        f'''
+        <div style="display: flex; justify-content: center; align-items: center; padding: 10px;">
+            {svg_content}
+        </div>
+        ''',
+        height=550
+    )
+    st.markdown(f"""
+    **当前配置:**
+    - 瓶塞: {stopper}
+    - 内外壁: {wall}
+    - 夹层: {gap}
+    - 涂层: {coating}
+    """)
+
+# 右列：雷达图 + 性能指标 + 降温曲线
+with col_right:
     st.subheader("📊 性能雷达图")
     cost_control = 30 - total_cost
     radar_data = pd.DataFrame({
@@ -227,34 +260,21 @@ with col1:
         line_close=True,
         range_r=[-30, 70],
         title='保温杯性能分析',
-        height=400
+        height=350
     )
     fig_radar.update_traces(fill='toself')
-    fig_radar.update_layout(margin=dict(l=40, r=40, t=60, b=40))
+    fig_radar.update_layout(margin=dict(l=40, r=40, t=50, b=40))
     st.plotly_chart(fig_radar, use_container_width=True)
 
-# 中列：保温瓶可视化
-with col2:
-    st.subheader("🧪 保温杯模型")
-    svg_content = generate_thermos_svg(stopper, wall, gap, coating)
-    components.html(
-        f'''
-        <div style="display: flex; justify-content: center; align-items: center; padding: 10px;">
-            {svg_content}
-        </div>
-        ''',
-        height=450
-    )
-    st.markdown(f"""
-    **当前配置:**
-    - 瓶塞: {stopper}
-    - 内外壁: {wall}
-    - 夹层: {gap}
-    - 涂层: {coating}
-    """)
+    st.subheader("📋 性能指标")
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    with metric_col1:
+        st.metric("保温效能", f"{total_thermal}")
+    with metric_col2:
+        st.metric("总成本", f"¥{total_cost}")
+    with metric_col3:
+        st.metric("坚固度", f"{total_strength}")
 
-# 右列：降温曲线
-with col3:
     st.subheader("📈 降温模拟")
     t = np.linspace(0, 60, 100)
     k = 0.1 - (total_thermal / 500)
@@ -272,19 +292,27 @@ with col3:
     fig_temp.update_layout(margin=dict(l=20, r=20, t=40, b=20))
     st.plotly_chart(fig_temp, use_container_width=True)
 
-    st.subheader("📋 性能指标")
-    st.metric("保温效能", f"{total_thermal}")
-    st.metric("总成本", f"¥{total_cost}")
-    st.metric("坚固度", f"{total_strength}")
-    st.metric("综合得分", f"{score:.2f}")
-
 # ===================== 提交区 =====================
+st.divider()
 st.subheader("✅ 提交我的设计")
+st.caption("💡 探索不同材料的组合，想看看最终得分？提交你的设计吧！")
+
 designer_name = st.text_input("设计师姓名/代号")
-if st.button("提交我的设计"):
+submitted = st.button("提交我的设计")
+
+if submitted:
     if designer_name:
         save_submission(designer_name, stopper, wall, gap, coating, score)
-        st.success(f"🎉 设计已提交！你的总分是: {score:.2f}")
+        emoji, comment, color = get_evaluation(score)
+        st.balloons()
+        st.markdown(f"""
+        <div style="text-align: center; padding: 30px; border-radius: 15px; background: linear-gradient(135deg, {color}22, {color}44); margin: 20px 0;">
+            <h1 style="font-size: 60px; margin: 0;">{emoji}</h1>
+            <h2 style="color: {color}; margin: 10px 0;">{comment}</h2>
+            <h1 style="font-size: 48px; color: {color}; margin: 10px 0;">{score:.2f} 分</h1>
+            <p style="color: #666;">设计已提交成功！</p>
+        </div>
+        """, unsafe_allow_html=True)
     else:
         st.warning("请输入设计师姓名/代号")
 
