@@ -31,29 +31,29 @@ MATERIALS = {
     }
 }
 
-# 材料颜色映射
+# 材料颜色映射 - 更真实的颜色
 COLORS = {
     "瓶塞": {
-        "塑料敞口": "#8B4513",
-        "实心木塞": "#D2691E",
-        "真空中空塞": "#C0C0C0"
+        "塑料敞口": "#333333",      
+        "实心木塞": "#8B7355",       
+        "真空中空塞": "#C0C0C0"      
     },
     "内外壁": {
-        "单层塑料": "#4A90D9",
-        "单层玻璃": "#87CEEB",
-        "单层不锈钢": "#708090",
-        "双层塑料": "#357ABD",
-        "双层玻璃": "#5BA3C0",
-        "双层不锈钢": "#4A5568"
+        "单层塑料": "#6B8DD6",       
+        "单层玻璃": "#B8D4E3",       
+        "单层不锈钢": "#A8A8A8",     
+        "双层塑料": "#4A6FA5",       
+        "双层玻璃": "#9EC5D8",       
+        "双层不锈钢": "#888888"      
     },
     "夹层": {
         "无夹层": "transparent",
-        "填充空气": "#E0E0E0",
-        "抽真空": "#1a1a2e"
+        "填充空气": "#F0F0F0",       
+        "抽真空": "#1a1a2e"          
     },
     "涂层": {
         "无涂层": "transparent",
-        "镀银涂层": "#C0C0C0"
+        "镀银涂层": "#E8E8E8"         
     }
 }
 
@@ -102,7 +102,7 @@ def calculate_total(selections):
         total_cost += cost
         total_strength += strength
     
-    if selections["内外壁"] in ["单层不锈钢", "双层不锈钢"] and selections["夹层"] == "抽真空":
+    if selections["内外壁"] in ["单层不锈钢", "双层不锈钢"] and selections["夹层"] != "无夹层":
         total_thermal += 20
     
     if total_cost > 30:
@@ -133,7 +133,7 @@ def generate_thermos_svg(stopper, wall, gap, coating):
     show_coating = coating != "无涂层"
     
     svg = f'''
-    <svg width="200" height="300" viewBox="0 0 200 300">
+    <svg width="280" height="420" viewBox="0 0 200 300">
         <defs>
             <linearGradient id="wallGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" style="stop-color:{wall_color};stop-opacity:1" />
@@ -239,11 +239,11 @@ with col2:
     svg_content = generate_thermos_svg(stopper, wall, gap, coating)
     components.html(
         f'''
-        <div style="display: flex; justify-content: center; align-items: center; padding: 20px;">
+        <div style="display: flex; justify-content: center; align-items: center; padding: 10px;">
             {svg_content}
         </div>
         ''',
-        height=350
+        height=450
     )
     st.markdown(f"""
     **当前配置:**
