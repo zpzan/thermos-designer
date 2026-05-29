@@ -8,7 +8,7 @@ import numpy as np
 # ===================== 1. 材料字典定义 =====================
 MATERIALS = {
     "瓶塞": {
-        "塑料敞口": (-20, 1, 10),
+        "塑料敞口": (-20, 0, 10),
         "实心木塞": (10, 3, 20),
         "真空中空塞": (30, 8, 15)
     },
@@ -134,7 +134,7 @@ def generate_thermos_svg(stopper, wall, gap, coating):
     
     is_double_wall = "双层" in wall
     show_coating = coating != "无涂层"
-    is_single_wall = not is_double_wall
+    is_open = stopper == "塑料敞口"
     
     svg = f'''
     <svg width="580" height="500" viewBox="0 0 580 500">
@@ -183,16 +183,17 @@ def generate_thermos_svg(stopper, wall, gap, coating):
         
         <!-- 瓶口 -->
         <path d="M175 90 L170 120 L250 120 L245 90 Z" fill="url(#wallGradient)" stroke="#333" stroke-width="2"/>
-        <!-- 瓶塞 -->
-        <rect x="180" y="50" width="60" height="40" rx="6" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
-        <path d="M172 90 L165 115 L195 106 L225 106 L255 115 L248 90 Z" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>
+        <!-- 瓶塞（敞口时不画，显示空洞） -->
+        {'<rect x="180" y="50" width="60" height="40" rx="6" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>' if not is_open else ''}
+        {f'<path d="M172 90 L165 115 L195 106 L225 106 L255 115 L248 90 Z" fill="url(#stopperGradient)" stroke="#333" stroke-width="2"/>' if not is_open else ''}
+        {f'<ellipse cx="210" cy="108" rx="42" ry="8" fill="#1a1a2e" stroke="#555" stroke-width="1.5" opacity="0.7"/>' if is_open else ''}
         
         <!-- 瓶底 -->
         <ellipse cx="210" cy="374" rx="50" ry="12" fill="{wall_color}" opacity="0.8" stroke="#333" stroke-width="2"/>
         
         <!-- 标注线 - 瓶塞 (Y=70) -->
         <line x1="300" y1="70" x2="243" y2="70" stroke="#ff6b6b" stroke-width="2" marker-end="url(#arrowheadRed)"/>
-        <text x="308" y="75" font-size="18" fill="#ff6b6b" font-weight="bold">瓶塞: {stopper}</text>
+        <text x="308" y="75" font-size="18" fill="#ff6b6b" font-weight="bold">{'敞口(无瓶塞)' if is_open else '瓶塞: ' + stopper}</text>
         
         <!-- 标注线 - 内外壁 (Y=160) -->
         <line x1="300" y1="160" x2="260" y2="160" stroke="#4ecdc4" stroke-width="2" marker-end="url(#arrowheadCyan)"/>
