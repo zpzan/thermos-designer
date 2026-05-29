@@ -275,11 +275,9 @@ def get_evaluation(score):
 # ===================== 初始化session_state =====================
 if 'submitted_score' not in st.session_state:
     st.session_state.submitted_score = None
-if 'show_leaderboard' not in st.session_state:
-    st.session_state.show_leaderboard = False
-
-RANDOM_NAMES = ["无名大侠", "神秘工匠", "设计新星", "创意达人", "探索先锋", "材料达人"]
-default_name = np.random.choice(RANDOM_NAMES)
+if 'designer_name' not in st.session_state:
+    RANDOM_NAMES = ["无名大侠", "神秘工匠", "设计新星", "创意达人", "探索先锋", "材料达人"]
+    st.session_state.designer_name = np.random.choice(RANDOM_NAMES)
 
 # ===================== 主区域 =====================
 col_left, col_right = st.columns([2.5, 1.5])
@@ -342,23 +340,46 @@ with col_right:
     fig_temp.update_layout(margin=dict(l=20, r=20, t=30, b=20))
     st.plotly_chart(fig_temp, use_container_width=True)
 
+# ===================== 英雄榜弹窗函数 =====================
+if hasattr(st, 'dialog'):
+    @st.dialog("🏆 全班排行榜", width="large")
+    def show_leaderboard():
+        leaderboard = get_leaderboard()
+        if not leaderboard.empty:
+            leaderboard_display = leaderboard.copy()
+            leaderboard_display.index = range(1, len(leaderboard_display) + 1)
+            leaderboard_display.index.name = "排名"
+            st.dataframe(leaderboard_display[['name', 'stopper', 'wall', 'gap', 'coating', 'score']], use_container_width=True)
+        else:
+            st.info("暂无提交记录，成为第一个提交者吧！")
+else:
+    def show_leaderboard():
+        leaderboard = get_leaderboard()
+        st.markdown("## 🏆 全班排行榜")
+        if not leaderboard.empty:
+            leaderboard_display = leaderboard.copy()
+            leaderboard_display.index = range(1, len(leaderboard_display) + 1)
+            leaderboard_display.index.name = "排名"
+            st.dataframe(leaderboard_display[['name', 'stopper', 'wall', 'gap', 'coating', 'score']], use_container_width=True)
+        else:
+            st.info("暂无提交记录，成为第一个提交者吧！")
+
 # ===================== 提交区（一行） =====================
 st.divider()
-sub_col1, sub_col2, sub_col3 = st.columns([2, 3, 1])
+sub_col1, sub_col2, sub_col3 = st.columns([3, 2, 1])
 
 with sub_col1:
+    designer_name = st.text_input("设计师姓名", value=st.session_state.designer_name, label_visibility="collapsed", placeholder="设计师姓名", key="name_input")
+
+with sub_col2:
     if st.button("✅ 提交我的设计", use_container_width=True):
-        save_submission(designer_name or default_name, stopper, wall, gap, coating, score)
+        save_submission(designer_name, stopper, wall, gap, coating, score)
         st.session_state.submitted_score = score
         st.rerun()
 
-with sub_col2:
-    designer_name = st.text_input("设计师姓名", value=default_name, label_visibility="collapsed", placeholder="设计师姓名")
-
 with sub_col3:
     if st.button("🏆 英雄榜", use_container_width=True):
-        st.session_state.show_leaderboard = True
-        st.rerun()
+        show_leaderboard()
 
 if st.session_state.submitted_score is not None:
     emoji, comment, color = get_evaluation(st.session_state.submitted_score)
@@ -372,36 +393,4 @@ if st.session_state.submitted_score is not None:
     """, unsafe_allow_html=True)
     if st.button("🔄 继续探索"):
         st.session_state.submitted_score = None
-        st.rerun()
-
-# ===================== 英雄榜弹窗 =====================
-if st.session_state.show_leaderboard:
-    with st.container():
-        st.markdown("""
-        <style>
-        .leaderboard-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 999; display: flex;
-            justify-content: center; align-items: center;
-        }
-        .leaderboard-card {
-            background: white; border-radius: 15px; padding: 30px;
-            width: 80%; max-height: 70vh; overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    leaderboard = get_leaderboard()
-    st.markdown("## 🏆 全班排行榜")
-    if not leaderboard.empty:
-        leaderboard_display = leaderboard.copy()
-        leaderboard_display.index = range(1, len(leaderboard_display) + 1)
-        leaderboard_display.index.name = "排名"
-        st.dataframe(leaderboard_display[['name', 'stopper', 'wall', 'gap', 'coating', 'score']], use_container_width=True)
-    else:
-        st.info("暂无提交记录，成为第一个提交者吧！")
-    
-    if st.button("❌ 关闭英雄榜", use_container_width=True):
-        st.session_state.show_leaderboard = False
         st.rerun()
