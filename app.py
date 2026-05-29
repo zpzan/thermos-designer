@@ -228,12 +228,21 @@ stopper = parse_material_label(stopper_label)
 wall = parse_material_label(wall_label)
 is_double_wall = "双层" in wall
 
-# 单层材料不能选夹层，自动锁定为"无夹层"
-if is_double_wall:
-    gap_label = st.sidebar.selectbox("夹层选择", get_material_options("夹层"), index=0)
-else:
+# 夹层选择逻辑
+#   单层材料 → 锁定为"无夹层"
+#   双层塑料 → 可选"无夹层"/"填充空气"，不可抽真空
+#   双层玻璃/不锈钢 → 全部可选
+if not is_double_wall:
     st.sidebar.selectbox("夹层选择", ["无夹层 ➡️(效能0) ¥0 (单层不可选)"], index=0, disabled=True)
     gap_label = "无夹层 ➡️(效能0) ¥0 (单层不可选)"
+elif wall == "双层塑料":
+    plastic_gap_options = [
+        "无夹层 ➡️(效能0) ¥0",
+        "填充空气 🔥(效能10) ¥2"
+    ]
+    gap_label = st.sidebar.selectbox("夹层选择", plastic_gap_options, index=0)
+else:
+    gap_label = st.sidebar.selectbox("夹层选择", get_material_options("夹层"), index=0)
 
 coating_label = st.sidebar.selectbox("涂层选择", get_material_options("涂层"), index=0)
 
@@ -340,10 +349,37 @@ with col_right:
     fig_temp.update_layout(margin=dict(l=20, r=20, t=30, b=20))
     st.plotly_chart(fig_temp, use_container_width=True)
 
+# ===================== 提交评语弹窗 =====================
+if hasattr(st, 'dialog'):
+    @st.dialog("🎉 提交成功！", width="small")
+    def show_submission_result():
+        emoji, comment, color = get_evaluation(st.session_state.submitted_score)
+        st.balloons()
+        st.markdown(f"""
+        <div style="text-align: center; padding: 20px; border-radius: 15px; background: linear-gradient(135deg, {color}22, {color}44); margin: 10px 0;">
+            <h1 style="font-size: 60px; margin: 0;">{emoji}</h1>
+            <h2 style="color: {color}; margin: 10px 0;">{comment}</h2>
+            <h1 style="font-size: 50px; color: {color}; margin: 10px 0;">{st.session_state.submitted_score:.2f} 分</h1>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 继续探索", use_container_width=True):
+            st.session_state.submitted_score = None
+            st.rerun()
+else:
+    def show_submission_result():
+        st.session_state.submitted_score = None
+        st.rerun()
+
 # ===================== 英雄榜弹窗函数 =====================
 if hasattr(st, 'dialog'):
     @st.dialog("🏆 全班排行榜", width="large")
     def show_leaderboard():
+        st.markdown("""
+        <style>
+        .stDataFrame { font-size: 18px !important; }
+        .stDataFrame th { font-size: 20px !important; font-weight: bold !important; }
+        </style>
+        """, unsafe_allow_html=True)
         leaderboard = get_leaderboard()
         if not leaderboard.empty:
             leaderboard_display = leaderboard.copy()
@@ -354,43 +390,11 @@ if hasattr(st, 'dialog'):
             st.info("暂无提交记录，成为第一个提交者吧！")
 else:
     def show_leaderboard():
+        st.markdown("""
+        <style>
+        .stDataFrame { font-size: 18px !important; }
+        .stDataFrame th { font-size: 20px !important; font-weight: bold !important; }
+        </style>
+        """, unsafe_allow_html=True)
         leaderboard = get_leaderboard()
-        st.markdown("## 🏆 全班排行榜")
-        if not leaderboard.empty:
-            leaderboard_display = leaderboard.copy()
-            leaderboard_display.index = range(1, len(leaderboard_display) + 1)
-            leaderboard_display.index.name = "排名"
-            st.dataframe(leaderboard_display[['name', 'stopper', 'wall', 'gap', 'coating', 'score']], use_container_width=True)
-        else:
-            st.info("暂无提交记录，成为第一个提交者吧！")
-
-# ===================== 提交区（一行） =====================
-st.divider()
-sub_col1, sub_col2, sub_col3 = st.columns([3, 2, 1])
-
-with sub_col1:
-    designer_name = st.text_input("设计师姓名", value=st.session_state.designer_name, label_visibility="collapsed", placeholder="设计师姓名", key="name_input")
-
-with sub_col2:
-    if st.button("✅ 提交我的设计", use_container_width=True):
-        save_submission(designer_name, stopper, wall, gap, coating, score)
-        st.session_state.submitted_score = score
-        st.rerun()
-
-with sub_col3:
-    if st.button("🏆 英雄榜", use_container_width=True):
-        show_leaderboard()
-
-if st.session_state.submitted_score is not None:
-    emoji, comment, color = get_evaluation(st.session_state.submitted_score)
-    st.balloons()
-    st.markdown(f"""
-    <div style="text-align: center; padding: 15px; border-radius: 12px; background: linear-gradient(135deg, {color}22, {color}44); margin: 5px 0;">
-        <h1 style="font-size: 40px; margin: 0;">{emoji}</h1>
-        <h2 style="color: {color}; margin: 5px 0;">{comment}</h2>
-        <h1 style="font-size: 36px; color: {color}; margin: 5px 0;">{st.session_state.submitted_score:.2f} 分</h1>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("🔄 继续探索"):
-        st.session_state.submitted_score = None
-        st.rerun()
+        st.markdown("## 🏆 全班排行榜
