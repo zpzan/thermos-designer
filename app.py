@@ -350,51 +350,52 @@ with col_right:
     st.plotly_chart(fig_temp, use_container_width=True)
 
 # ===================== 提交评语弹窗 =====================
-if hasattr(st, 'dialog'):
-    @st.dialog("🎉 提交成功！", width="small")
-    def show_submission_result():
-        emoji, comment, color = get_evaluation(st.session_state.submitted_score)
-        st.balloons()
-        st.markdown(f"""
-        <div style="text-align: center; padding: 20px; border-radius: 15px; background: linear-gradient(135deg, {color}22, {color}44); margin: 10px 0;">
-            <h1 style="font-size: 60px; margin: 0;">{emoji}</h1>
-            <h2 style="color: {color}; margin: 10px 0;">{comment}</h2>
-            <h1 style="font-size: 50px; color: {color}; margin: 10px 0;">{st.session_state.submitted_score:.2f} 分</h1>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("🔄 继续探索", use_container_width=True):
-            st.session_state.submitted_score = None
-            st.rerun()
-else:
-    def show_submission_result():
+@st.dialog("🎉 提交成功！", width="small")
+def show_submission_result():
+    emoji, comment, color = get_evaluation(st.session_state.submitted_score)
+    st.balloons()
+    st.markdown(f"""
+    <div style="text-align: center; padding: 20px; border-radius: 15px; background: linear-gradient(135deg, {color}22, {color}44); margin: 10px 0;">
+        <h1 style="font-size: 60px; margin: 0;">{emoji}</h1>
+        <h2 style="color: {color}; margin: 10px 0;">{comment}</h2>
+        <h1 style="font-size: 50px; color: {color}; margin: 10px 0;">{st.session_state.submitted_score:.2f} 分</h1>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🔄 继续探索", use_container_width=True):
         st.session_state.submitted_score = None
         st.rerun()
 
 # ===================== 英雄榜弹窗函数 =====================
-if hasattr(st, 'dialog'):
-    @st.dialog("🏆 全班排行榜", width="large")
-    def show_leaderboard():
-        st.markdown("""
-        <style>
-        .stDataFrame { font-size: 18px !important; }
-        .stDataFrame th { font-size: 20px !important; font-weight: bold !important; }
-        </style>
-        """, unsafe_allow_html=True)
-        leaderboard = get_leaderboard()
-        if not leaderboard.empty:
-            leaderboard_display = leaderboard.copy()
-            leaderboard_display.index = range(1, len(leaderboard_display) + 1)
-            leaderboard_display.index.name = "排名"
-            st.dataframe(leaderboard_display[['name', 'stopper', 'wall', 'gap', 'coating', 'score']], use_container_width=True)
-        else:
-            st.info("暂无提交记录，成为第一个提交者吧！")
-else:
-    def show_leaderboard():
-        st.markdown("""
-        <style>
-        .stDataFrame { font-size: 18px !important; }
-        .stDataFrame th { font-size: 20px !important; font-weight: bold !important; }
-        </style>
-        """, unsafe_allow_html=True)
-        leaderboard = get_leaderboard()
-        st.markdown("## 🏆 全班排行榜
+@st.dialog("🏆 全班排行榜", width="large")
+def show_leaderboard():
+    st.markdown("""
+    <style>
+    .stDataFrame { font-size: 18px !important; }
+    .stDataFrame th { font-size: 20px !important; font-weight: bold !important; }
+    </style>
+    """, unsafe_allow_html=True)
+    leaderboard = get_leaderboard()
+    if not leaderboard.empty:
+        leaderboard_display = leaderboard.copy()
+        leaderboard_display.index = range(1, len(leaderboard_display) + 1)
+        leaderboard_display.index.name = "排名"
+        st.dataframe(leaderboard_display[['name', 'stopper', 'wall', 'gap', 'coating', 'score']], use_container_width=True)
+    else:
+        st.info("暂无提交记录，成为第一个提交者吧！")
+
+# ===================== 提交区（一行） =====================
+st.divider()
+sub_col1, sub_col2, sub_col3 = st.columns([3, 2, 1])
+
+with sub_col1:
+    designer_name = st.text_input("设计师姓名", value=st.session_state.designer_name, label_visibility="collapsed", placeholder="设计师姓名", key="name_input")
+
+with sub_col2:
+    if st.button("✅ 提交我的设计", use_container_width=True):
+        save_submission(designer_name, stopper, wall, gap, coating, score)
+        st.session_state.submitted_score = score
+        show_submission_result()
+
+with sub_col3:
+    if st.button("🏆 英雄榜", use_container_width=True):
+        show_leaderboard()
